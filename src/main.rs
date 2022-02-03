@@ -1,14 +1,23 @@
 use macroquad::prelude::*;
 
-const BALL_RADIUS: f32 = 10.0;
+const BALL_SIZE: f32 = 20.0;
 const BALL_COLOR: Color = MAROON;
 
-const PADDLE_HEIGHT: f32 = 12.0;
-const PADDLE_SPEED: f32 = 650.0;
+const PADDLE_HEIGHT: f32 = 8.0;
+const PADDLE_SPEED: f32 = 720.0;
 const PADDLE_COLOR: Color = LIME;
 
+const BRICK_COL_COUNT: usize = 12;
+const BRICK_ROW_COUNT: usize = 16;
+const BRICK_WIDTH: f32 = 55.0;
+const BRICK_HEIGHT: f32 = 20.0;
+const BRICK_GAP: f32 = 2.0;
+const BRICK_COLOR: Color = BROWN;
+const HPADDING: f32 = 45.0;
+const VPADDING: f32 = 25.0;
+
 struct Ball {
-    pub pos: Vec2,
+    pub rect: Rect,
     pub speed: f32,
     pub dir: Vec2,
 }
@@ -16,23 +25,46 @@ struct Ball {
 impl Default for Ball {
     fn default() -> Self {
         Self {
-            pos: Vec2::new(screen_width() / 2.0, screen_height() / 1.2),
+            rect: Rect::new(
+                screen_width() / 2.0,
+                screen_height() / 1.2,
+                BALL_SIZE,
+                BALL_SIZE,
+            ),
             speed: 240.0,
-            dir: Vec2::new(1.0, -1.0),
+            dir: vec2(1.0, -1.0),
         }
     }
 }
 
 struct Paddle {
-    pos: Vec2,
-    width: f32,
+    rect: Rect,
 }
 
 impl Default for Paddle {
     fn default() -> Self {
         Self {
-            pos: Vec2::new(screen_width() / 2.0, screen_height() / 1.05),
-            width: 200.0,
+            rect: Rect::new(
+                screen_width() / 2.0,
+                screen_height() / 1.05,
+                200.0,
+                PADDLE_HEIGHT,
+            ),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Brick {
+    pub rect: Rect,
+    pub is_active: bool,
+}
+
+impl Brick {
+    fn new() -> Self {
+        Self {
+            rect: Rect::new(0.0, 0.0, BRICK_WIDTH, BRICK_HEIGHT),
+            is_active: true,
         }
     }
 }
@@ -40,19 +72,25 @@ impl Default for Paddle {
 struct GameState {
     pub ball: Ball,
     pub paddle: Paddle,
-    pub dt: f32,
+    pub bricks: [[Brick; BRICK_COL_COUNT]; BRICK_ROW_COUNT],
     pub is_running: bool,
-    last_update: f64,
 }
 
 impl Default for GameState {
     fn default() -> Self {
+        let mut bricks = [[Brick::new(); BRICK_COL_COUNT]; BRICK_ROW_COUNT];
+        for (i, row) in bricks.iter_mut().enumerate() {
+            for (j, brick) in row.iter_mut().enumerate() {
+                brick.rect.x = j as f32 * (BRICK_WIDTH + BRICK_GAP) + HPADDING;
+                brick.rect.y = i as f32 * (BRICK_HEIGHT + BRICK_GAP) + VPADDING;
+            }
+        }
+
         Self {
             ball: Ball::default(),
             paddle: Paddle::default(),
-            dt: 0.0,
+            bricks,
             is_running: true,
-            last_update: 0.0,
         }
     }
 }
@@ -75,6 +113,7 @@ async fn main() {
 fn window_config() -> Conf {
     Conf {
         window_title: "Breakout".to_string(),
+        window_resizable: false,
         sample_count: 4,
         high_dpi: true,
         ..Default::default()
@@ -82,43 +121,95 @@ fn window_config() -> Conf {
 }
 
 fn handle_input(state: &mut GameState) {
-    let GameState { paddle, dt, .. } = state;
+    let GameState { paddle, .. } = state;
+    let dt = get_frame_time();
 
     if is_key_pressed(KeyCode::Escape) {
         state.is_running = false;
     }
 
-    if is_key_down(KeyCode::D) {
-        paddle.pos.x += PADDLE_SPEED * *dt;
-    } else if is_key_down(KeyCode::A) {
-        paddle.pos.x -= PADDLE_SPEED * *dt;
+    if is_key_down(KeyCode::D) && paddle.rect.right() <= screen_width() {
+        paddle.rect.x += PADDLE_SPEED * dt;
+    } else if is_key_down(KeyCode::A) && paddle.rect.x >= 0.0 {
+        paddle.rect.x -= PADDLE_SPEED * dt;
     }
 }
 
 fn update(state: &mut GameState) {
-    let GameState { ball, dt, .. } = state;
+    let GameState { ball, paddle, .. } = state;
+    let dt = get_frame_time();
 
-    *dt = (get_time() - state.last_update) as f32;
-    state.last_update = get_time();
-
-    if ball.pos.x <= 0.0 {
-        ball.pos.x = 0.0;
+    if ball.rect.x <= 0.0 {
+        ball.rect.x = 0.0;
         ball.dir.x = 1.0;
-    } else if ball.pos.x >= screen_width() {
-        ball.pos.x = screen_width();
+    } else if ball.rect.x >= screen_width() {
+        ball.rect.x = screen_width();
         ball.dir.x = -1.0;
     }
 
-    ball.pos += ball.speed * ball.dir * *dt;
+    if ball.rect.y <= 0.0 {
+        ball.rect.y = 0.0;
+        ball.dir.y = 1.0;
+    } else if ball.rect.y >= screen_height() {
+        ball.rect.y = screen_height();
+        ball.dir.y = -1.0;
+    }
+
+    ball.rect.x += ball.speed * ball.dir.x * dt;
+    ball.rect.y += ball.speed * ball.dir.y * dt;
+
+    if paddle.rect.overlaps(&ball.rect) {
+        ball.dir.y = -1.0;
+    }
+
+    for row in state.bricks.iter_mut() {
+        for brick in row.iter_mut() {
+            if !brick.is_active {
+                continue;
+            }
+
+            if ball.rect.x >= brick.rect.x
+                && ball.rect.x < brick.rect.right()
+                && ball.rect.y >= brick.rect.y
+                && ball.rect.y < brick.rect.bottom()
+            {
+                ball.dir.y *= -1.0;
+                brick.is_active = false;
+            }
+        }
+    }
 }
 
 fn draw(state: &GameState) {
-    draw_circle(state.ball.pos.x, state.ball.pos.y, BALL_RADIUS, BALL_COLOR);
+    let GameState {
+        ball,
+        paddle,
+        bricks,
+        ..
+    } = state;
+
+    draw_circle(ball.rect.x, ball.rect.y, BALL_SIZE / 2.0, BALL_COLOR);
     draw_rectangle(
-        state.paddle.pos.x,
-        state.paddle.pos.y,
-        state.paddle.width,
+        paddle.rect.x,
+        paddle.rect.y,
+        paddle.rect.w,
         PADDLE_HEIGHT,
         PADDLE_COLOR,
-    )
+    );
+
+    for row in bricks.iter() {
+        for brick in row.iter() {
+            if !brick.is_active {
+                continue;
+            }
+
+            draw_rectangle(
+                brick.rect.x,
+                brick.rect.y,
+                BRICK_WIDTH,
+                BRICK_HEIGHT,
+                BRICK_COLOR,
+            );
+        }
+    }
 }

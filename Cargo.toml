@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 macroquad = "0.3.13"
+"rapier2d" = "0.11.1"
