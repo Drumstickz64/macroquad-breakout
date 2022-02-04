@@ -147,7 +147,7 @@ fn update(state: &mut GameState) {
     if ball.rect.x <= 0.0 {
         ball.rect.x = 0.0;
         ball.dir.x = 1.0;
-    } else if ball.rect.right() >= screen_width() {
+    } else if ball.rect.x >= screen_width() {
         ball.rect.x = screen_width();
         ball.dir.x = -1.0;
     }
@@ -155,7 +155,7 @@ fn update(state: &mut GameState) {
     if ball.rect.y <= 0.0 {
         ball.rect.y = 0.0;
         ball.dir.y = 1.0;
-    } else if ball.rect.bottom() >= screen_height() {
+    } else if ball.rect.y >= screen_height() {
         state.is_running = false;
     }
 
