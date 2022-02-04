@@ -1,6 +1,6 @@
 use macroquad::prelude::*;
 
-const BALL_SIZE: f32 = 20.0;
+const BALL_SIZE: f32 = 10.0;
 const BALL_COLOR: Color = MAROON;
 
 const PADDLE_HEIGHT: f32 = 8.0;
@@ -9,12 +9,15 @@ const PADDLE_COLOR: Color = LIME;
 
 const BRICK_COL_COUNT: usize = 12;
 const BRICK_ROW_COUNT: usize = 16;
-const BRICK_WIDTH: f32 = 55.0;
+const BRICK_WIDTH: f32 = 60.0;
 const BRICK_HEIGHT: f32 = 20.0;
 const BRICK_GAP: f32 = 2.0;
 const BRICK_COLOR: Color = BROWN;
-const HPADDING: f32 = 45.0;
-const VPADDING: f32 = 25.0;
+const HPADDING: f32 = 28.0;
+const VPADDING: f32 = 35.0;
+
+const SCORE_FONT_SIZE: f32 = 20.0;
+const SCORE_COLOR: Color = WHITE;
 
 struct Ball {
     pub rect: Rect,
@@ -31,7 +34,7 @@ impl Default for Ball {
                 BALL_SIZE,
                 BALL_SIZE,
             ),
-            speed: 240.0,
+            speed: 150.0,
             dir: vec2(1.0, -1.0),
         }
     }
@@ -74,6 +77,7 @@ struct GameState {
     pub paddle: Paddle,
     pub bricks: [[Brick; BRICK_COL_COUNT]; BRICK_ROW_COUNT],
     pub is_running: bool,
+    pub score: u64,
 }
 
 impl Default for GameState {
@@ -91,6 +95,7 @@ impl Default for GameState {
             paddle: Paddle::default(),
             bricks,
             is_running: true,
+            score: 0,
         }
     }
 }
@@ -142,7 +147,7 @@ fn update(state: &mut GameState) {
     if ball.rect.x <= 0.0 {
         ball.rect.x = 0.0;
         ball.dir.x = 1.0;
-    } else if ball.rect.x >= screen_width() {
+    } else if ball.rect.right() >= screen_width() {
         ball.rect.x = screen_width();
         ball.dir.x = -1.0;
     }
@@ -150,9 +155,8 @@ fn update(state: &mut GameState) {
     if ball.rect.y <= 0.0 {
         ball.rect.y = 0.0;
         ball.dir.y = 1.0;
-    } else if ball.rect.y >= screen_height() {
-        ball.rect.y = screen_height();
-        ball.dir.y = -1.0;
+    } else if ball.rect.bottom() >= screen_height() {
+        state.is_running = false;
     }
 
     ball.rect.x += ball.speed * ball.dir.x * dt;
@@ -168,13 +172,28 @@ fn update(state: &mut GameState) {
                 continue;
             }
 
-            if ball.rect.x >= brick.rect.x
-                && ball.rect.x < brick.rect.right()
-                && ball.rect.y >= brick.rect.y
-                && ball.rect.y < brick.rect.bottom()
-            {
-                ball.dir.y *= -1.0;
+            if ball.rect.overlaps(&brick.rect) {
                 brick.is_active = false;
+                state.score += 1000;
+
+                let ball_middle = vec2(
+                    ball.rect.x + ball.rect.w / 2.0,
+                    ball.rect.y + ball.rect.h / 2.0,
+                );
+                let brick_middle = vec2(
+                    brick.rect.x + brick.rect.w / 2.0,
+                    brick.rect.y + brick.rect.h / 2.0,
+                );
+
+                let from_ball_to_brick = ball_middle - brick_middle;
+                // is the vector from the ball to the brick more perpendicular to the up vector (vertical hit)
+                // or more parrallel to the up vector (horizontal hit)
+                if from_ball_to_brick.normalize().dot(Vec2::Y).abs() >= 0.25 {
+                    ball.dir.y *= -1.0;
+                } else {
+                    ball.dir.x *= -1.0;
+                }
+                break;
             }
         }
     }
@@ -187,6 +206,14 @@ fn draw(state: &GameState) {
         bricks,
         ..
     } = state;
+
+    draw_text(
+        &state.score.to_string(),
+        screen_width() / 2.0,
+        20.0,
+        SCORE_FONT_SIZE,
+        SCORE_COLOR,
+    );
 
     draw_circle(ball.rect.x, ball.rect.y, BALL_SIZE / 2.0, BALL_COLOR);
     draw_rectangle(
