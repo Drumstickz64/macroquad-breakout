@@ -2,8 +2,10 @@ use macroquad::prelude::*;
 
 const BALL_SIZE: f32 = 10.0;
 const BALL_COLOR: Color = MAROON;
+const INITIAL_BALL_SPEED: f32 = 150.0;
 
 const PADDLE_HEIGHT: f32 = 8.0;
+const INITIAL_PADDLE_WIDTH: f32 = 150.0;
 const PADDLE_SPEED: f32 = 720.0;
 const PADDLE_COLOR: Color = LIME;
 
@@ -34,7 +36,7 @@ impl Default for Ball {
                 BALL_SIZE,
                 BALL_SIZE,
             ),
-            speed: 150.0,
+            speed: INITIAL_BALL_SPEED,
             dir: vec2(1.0, -1.0),
         }
     }
@@ -50,7 +52,7 @@ impl Default for Paddle {
             rect: Rect::new(
                 screen_width() / 2.0,
                 screen_height() / 1.05,
-                200.0,
+                INITIAL_PADDLE_WIDTH,
                 PADDLE_HEIGHT,
             ),
         }
@@ -129,6 +131,15 @@ fn handle_input(state: &mut GameState) {
     let GameState { paddle, .. } = state;
     let dt = get_frame_time();
 
+    if is_key_pressed(KeyCode::Backslash) {
+        for row in state.bricks.iter_mut().skip(1) {
+            for brick in row.iter_mut() {
+                brick.is_active = false;
+                state.score += 1000;
+            }
+        }
+    }
+
     if is_key_pressed(KeyCode::Escape) {
         state.is_running = false;
     }
@@ -143,6 +154,8 @@ fn handle_input(state: &mut GameState) {
 fn update(state: &mut GameState) {
     let GameState { ball, paddle, .. } = state;
     let dt = get_frame_time();
+
+    paddle.rect.w = INITIAL_PADDLE_WIDTH - INITIAL_PADDLE_WIDTH * state.score as f32 / 256000.0;
 
     if ball.rect.x <= 0.0 {
         ball.rect.x = 0.0;
@@ -161,6 +174,8 @@ fn update(state: &mut GameState) {
 
     ball.rect.x += ball.speed * ball.dir.x * dt;
     ball.rect.y += ball.speed * ball.dir.y * dt;
+
+    ball.speed = INITIAL_BALL_SPEED + INITIAL_BALL_SPEED * state.score as f32 / 76800.0;
 
     if paddle.rect.overlaps(&ball.rect) {
         ball.dir.y = -1.0;
@@ -186,8 +201,8 @@ fn update(state: &mut GameState) {
                 );
 
                 let from_ball_to_brick = ball_middle - brick_middle;
-                // is the vector from the ball to the brick more perpendicular to the up vector (vertical hit)
-                // or more parrallel to the up vector (horizontal hit)
+                // is the vector from the ball to the brick more parralel to the up vector (vertical hit)
+                // or more perpendicular to the up vector (horizontal hit)
                 if from_ball_to_brick.normalize().dot(Vec2::Y).abs() >= 0.25 {
                     ball.dir.y *= -1.0;
                 } else {
