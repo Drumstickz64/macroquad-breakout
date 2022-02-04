@@ -1,3 +1,4 @@
+use lazy_static::lazy_static;
 use macroquad::prelude::*;
 
 const BALL_SIZE: f32 = 10.0;
@@ -14,9 +15,17 @@ const BRICK_ROW_COUNT: usize = 16;
 const BRICK_WIDTH: f32 = 60.0;
 const BRICK_HEIGHT: f32 = 20.0;
 const BRICK_GAP: f32 = 2.0;
-const BRICK_COLOR: Color = BROWN;
 const HPADDING: f32 = 28.0;
 const VPADDING: f32 = 35.0;
+
+lazy_static! {
+    static ref BRICK_COLORS: [Color; 4] = [
+        Color::from_rgba(26, 26, 64, 255),
+        Color::from_rgba(39, 0, 130, 255),
+        Color::from_rgba(122, 11, 192, 255),
+        Color::from_rgba(250, 88, 182, 255),
+    ];
+}
 
 const SCORE_FONT_SIZE: f32 = 20.0;
 const SCORE_COLOR: Color = WHITE;
@@ -131,15 +140,6 @@ fn handle_input(state: &mut GameState) {
     let GameState { paddle, .. } = state;
     let dt = get_frame_time();
 
-    if is_key_pressed(KeyCode::Backslash) {
-        for row in state.bricks.iter_mut().skip(1) {
-            for brick in row.iter_mut() {
-                brick.is_active = false;
-                state.score += 1000;
-            }
-        }
-    }
-
     if is_key_pressed(KeyCode::Escape) {
         state.is_running = false;
     }
@@ -239,7 +239,10 @@ fn draw(state: &GameState) {
         PADDLE_COLOR,
     );
 
-    for row in bricks.iter() {
+    for (row_index, row) in bricks.iter().enumerate() {
+        let brick_color_index = row_index / BRICK_COLORS.len();
+        let brick_color = BRICK_COLORS[brick_color_index];
+
         for brick in row.iter() {
             if !brick.is_active {
                 continue;
@@ -250,7 +253,7 @@ fn draw(state: &GameState) {
                 brick.rect.y,
                 BRICK_WIDTH,
                 BRICK_HEIGHT,
-                BRICK_COLOR,
+                brick_color,
             );
         }
     }

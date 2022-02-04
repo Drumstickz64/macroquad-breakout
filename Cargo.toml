@@ -8,3 +8,4 @@ license = "MIT"
 
 [dependencies]
 macroquad = "0.3.13"
+lazy_static = "1.4.0"
