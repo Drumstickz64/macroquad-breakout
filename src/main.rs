@@ -51,7 +51,7 @@ fn window_config() -> Conf {
 struct GameState {
     pub ball: Ball,
     pub paddle: Paddle,
-    pub bricks: [[Brick; BRICK_COL_COUNT]; BRICK_ROW_COUNT],
+    pub bricks: BrickGrid,
     pub is_running: bool,
     pub score: u64,
     pub dt: f32,
@@ -59,18 +59,10 @@ struct GameState {
 
 impl GameState {
     fn new() -> Self {
-        let mut bricks = [[Brick::new(); BRICK_COL_COUNT]; BRICK_ROW_COUNT];
-        for (i, row) in bricks.iter_mut().enumerate() {
-            for (j, brick) in row.iter_mut().enumerate() {
-                brick.rect.x = j as f32 * (BRICK_WIDTH + BRICK_GAP) + BRICK_HPADDING;
-                brick.rect.y = i as f32 * (BRICK_HEIGHT + BRICK_GAP) + BRICK_VPADDING;
-            }
-        }
-
         Self {
             ball: Ball::default(),
             paddle: Paddle::default(),
-            bricks,
+            bricks: Brick::make_grid(),
             is_running: false,
             score: 0,
             dt: 0.0,
@@ -277,11 +269,24 @@ struct Brick {
     pub is_active: bool,
 }
 
+type BrickGrid = [[Brick; BRICK_COL_COUNT]; BRICK_ROW_COUNT];
+
 impl Brick {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             rect: Rect::new(0.0, 0.0, BRICK_WIDTH, BRICK_HEIGHT),
             is_active: true,
         }
+    }
+
+    pub fn make_grid() -> BrickGrid {
+        let mut bricks = [[Brick::new(); BRICK_COL_COUNT]; BRICK_ROW_COUNT];
+        for (i, row) in bricks.iter_mut().enumerate() {
+            for (j, brick) in row.iter_mut().enumerate() {
+                brick.rect.x = j as f32 * (BRICK_WIDTH + BRICK_GAP) + BRICK_HPADDING;
+                brick.rect.y = i as f32 * (BRICK_HEIGHT + BRICK_GAP) + BRICK_VPADDING;
+            }
+        }
+        bricks
     }
 }
